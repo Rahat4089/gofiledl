@@ -228,7 +228,11 @@ def extract():
         }), 400
     
     url = data['url'].strip()
-    password = data.get('password', '').strip() or None
+    password = data.get('password')
+    if password is not None and isinstance(password, str):
+        password = password.strip() or None
+    else:
+        password = None
     
     # Validate URL
     if not url:
