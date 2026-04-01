@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask, render_template, request, jsonify, session
 from flask_cors import CORS
 from datetime import datetime
@@ -17,14 +16,12 @@ CORS(app)
 
 
 def generate_website_token(user_agent: str, account_token: str) -> str:
-    """Generate the dynamic X-Website-Token required by GoFile API."""
     time_slot = int(timestamp()) // 14400
     raw = f"{user_agent}::en-US::{account_token}::{time_slot}::5d4f7g8sd45fsd"
     return sha256(raw.encode()).hexdigest()
 
 
 class GoFileExtractor:
-    """Extract direct download links from GoFile."""
     
     def __init__(self):
         self.session = Session()
@@ -81,18 +78,15 @@ class GoFileExtractor:
         }
         
         try:
-            # Validate URL
             if "/d/" not in url:
                 result["error"] = "Invalid GoFile URL format. URL should contain '/d/'"
                 return result
             
-            # Extract content ID
             content_id = url.split("/")[-1]
             if not content_id or content_id == "d":
                 result["error"] = "Could not extract content ID from URL"
                 return result
             
-            # Process with password if provided
             pwd_hash = sha256(password.encode()).hexdigest() if password else None
             content_data = self._fetch_content(content_id, pwd_hash)
             
@@ -104,7 +98,6 @@ class GoFileExtractor:
                 result["total_files"] = files_data["total_files"]
                 result["structure"] = files_data["structure"]
                 
-                # Format sizes for display
                 for file in result["files"]:
                     file["size_formatted"] = self.format_size(file["size"])
                 result["total_size_formatted"] = self.format_size(result["total_size"])
@@ -117,7 +110,6 @@ class GoFileExtractor:
         return result
     
     def _fetch_content(self, content_id: str, password: Optional[str] = None) -> Optional[Dict]:
-        """Fetch content data from GoFile API."""
         url = f"https://api.gofile.io/contents/{content_id}?cache=true&sortField=createTime&sortDirection=1"
         
         if password:
@@ -174,7 +166,6 @@ class GoFileExtractor:
             
             result["structure"] = folder_structure
         else:
-            # Process file
             file_name = data.get("name", "file")
             file_size = int(data.get("size", 0))
             file_link = data.get("link")
@@ -206,7 +197,6 @@ class GoFileExtractor:
         return result
 
 
-# Initialize extractor
 extractor = GoFileExtractor()
 
 
@@ -234,14 +224,12 @@ def extract():
     else:
         password = None
     
-    # Validate URL
     if not url:
         return jsonify({
             "success": False,
             "error": "Please provide a GoFile URL"
         }), 400
     
-    # Extract links
     result = extractor.extract_links(url, password)
     
     return jsonify(result)
@@ -256,7 +244,6 @@ def validate():
     if not url:
         return jsonify({"valid": False, "error": "No URL provided"})
     
-    # Simple URL validation
     pattern = r'https?://(www\.)?gofile\.io/d/[a-zA-Z0-9]+'
     valid = bool(re.match(pattern, url))
     
