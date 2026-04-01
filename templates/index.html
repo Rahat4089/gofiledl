@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* Your existing styles remain the same */
         * {
             margin: 0;
             padding: 0;
@@ -335,6 +336,8 @@
             transition: all 0.3s ease;
             display: inline-block;
             margin-left: 0.5rem;
+            border: none;
+            color: white;
         }
 
         .copy-btn:hover {
@@ -487,7 +490,7 @@
                         <input type="password" 
                                id="password" 
                                placeholder="Enter password if the content is protected">
-                        <button type="button" class="toggle-password" onclick="togglePassword()">
+                        <button type="button" class="toggle-password" id="togglePasswordBtn">
                             <i class="fas fa-eye"></i>
                         </button>
                     </div>
@@ -520,266 +523,304 @@
     </div>
     
     <script>
-        let currentResults = null;
-        
-        // Toggle password visibility
-        function togglePassword() {
+        // Wait for DOM to be fully loaded before attaching event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get DOM elements
+            const extractForm = document.getElementById('extractForm');
+            const urlInput = document.getElementById('url');
             const passwordInput = document.getElementById('password');
-            const icon = document.querySelector('.toggle-password i');
+            const submitBtn = document.getElementById('submitBtn');
+            const togglePasswordBtn = document.getElementById('togglePasswordBtn');
+            const resultsDiv = document.getElementById('results');
+            const statsDiv = document.getElementById('stats');
+            const fileTreeDiv = document.getElementById('fileTree');
+            const filesTableDiv = document.getElementById('filesTable');
             
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash');
-            } else {
-                passwordInput.type = 'password';
-                icon.classList.remove('fa-eye-slash');
-                icon.classList.add('fa-eye');
+            // Check if all required elements exist
+            if (!extractForm || !urlInput || !submitBtn) {
+                console.error('Required form elements not found');
+                return;
             }
-        }
-        
-        // Format bytes
-        function formatBytes(bytes) {
-            if (bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-        
-        // Build file tree HTML
-        function buildFileTree(structure, level = 0) {
-            if (!structure) return '';
             
-            let html = '';
-            const indent = '  '.repeat(level);
+            // Toggle password visibility
+            if (togglePasswordBtn) {
+                togglePasswordBtn.addEventListener('click', function() {
+                    const icon = this.querySelector('i');
+                    if (passwordInput.type === 'password') {
+                        passwordInput.type = 'text';
+                        icon.classList.remove('fa-eye');
+                        icon.classList.add('fa-eye-slash');
+                    } else {
+                        passwordInput.type = 'password';
+                        icon.classList.remove('fa-eye-slash');
+                        icon.classList.add('fa-eye');
+                    }
+                });
+            }
             
-            if (structure.type === 'folder') {
-                const folderId = 'folder_' + Math.random().toString(36).substr(2, 9);
-                html += `
-                    <div class="tree-item">
-                        <div class="tree-folder" onclick="toggleFolder('${folderId}')">
-                            <i class="fas fa-folder"></i> 📁 ${structure.name}
-                        </div>
-                        <div id="${folderId}" class="tree-children">
-                `;
+            // Format bytes
+            function formatBytes(bytes) {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
+            // Build file tree HTML
+            function buildFileTree(structure, level = 0) {
+                if (!structure) return '<p>No folder structure available</p>';
                 
-                if (structure.children && structure.children.length > 0) {
-                    structure.children.forEach(child => {
-                        html += buildFileTree(child, level + 1);
-                    });
-                }
+                let html = '';
                 
-                html += `</div></div>`;
-            } else {
-                html += `
-                    <div class="tree-item">
-                        <div class="tree-file">
-                            <span>
-                                <i class="fas fa-file"></i> 📄 ${structure.name}
-                                <span style="color: #888; font-size: 0.8rem;">(${formatBytes(structure.size)})</span>
-                            </span>
-                            <div>
-                                <a href="${structure.link}" class="file-link" target="_blank" onclick="event.stopPropagation()">
-                                    <i class="fas fa-download"></i> Download
-                                </a>
-                                <button class="copy-btn" onclick="copyToClipboard('${structure.link}', event)">
-                                    <i class="fas fa-copy"></i> Copy Link
-                                </button>
+                if (structure.type === 'folder') {
+                    const folderId = 'folder_' + Math.random().toString(36).substr(2, 9);
+                    html += `
+                        <div class="tree-item">
+                            <div class="tree-folder" onclick="window.toggleFolder('${folderId}')">
+                                <i class="fas fa-folder"></i> 📁 ${escapeHtml(structure.name)}
+                            </div>
+                            <div id="${folderId}" class="tree-children">
+                    `;
+                    
+                    if (structure.children && structure.children.length > 0) {
+                        structure.children.forEach(child => {
+                            html += buildFileTree(child, level + 1);
+                        });
+                    }
+                    
+                    html += `</div></div>`;
+                } else if (structure.type === 'file') {
+                    html += `
+                        <div class="tree-item">
+                            <div class="tree-file">
+                                <span>
+                                    <i class="fas fa-file"></i> 📄 ${escapeHtml(structure.name)}
+                                    <span style="color: #888; font-size: 0.8rem;">(${formatBytes(structure.size)})</span>
+                                </span>
+                                <div>
+                                    <a href="${escapeHtml(structure.link)}" class="file-link" target="_blank" onclick="event.stopPropagation()">
+                                        <i class="fas fa-download"></i> Download
+                                    </a>
+                                    <button class="copy-btn" onclick="window.copyToClipboard('${escapeHtml(structure.link)}', event)">
+                                        <i class="fas fa-copy"></i> Copy Link
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                `;
-            }
-            
-            return html;
-        }
-        
-        // Toggle folder visibility
-        function toggleFolder(folderId) {
-            const folder = document.getElementById(folderId);
-            if (folder.classList.contains('open')) {
-                folder.classList.remove('open');
-            } else {
-                folder.classList.add('open');
-            }
-        }
-        
-        // Copy to clipboard
-        function copyToClipboard(text, event) {
-            navigator.clipboard.writeText(text).then(() => {
-                const btn = event.target.closest('.copy-btn');
-                const originalHtml = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
-                setTimeout(() => {
-                    btn.innerHTML = originalHtml;
-                }, 2000);
-            });
-        }
-        
-        // Display results
-        function displayResults(data) {
-            if (!data.success) {
-                showError(data.error || 'Failed to extract links');
-                return;
-            }
-            
-            currentResults = data;
-            const resultsDiv = document.getElementById('results');
-            
-            // Display stats
-            const statsHtml = `
-                <div class="stat-card">
-                    <div class="stat-icon"><i class="fas fa-file"></i></div>
-                    <div class="stat-value">${data.total_files}</div>
-                    <div class="stat-label">Total Files</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon"><i class="fas fa-database"></i></div>
-                    <div class="stat-value">${data.total_size_formatted}</div>
-                    <div class="stat-label">Total Size</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon"><i class="fas fa-link"></i></div>
-                    <div class="stat-value">${data.files.length}</div>
-                    <div class="stat-label">Direct Links</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon"><i class="fas fa-folder"></i></div>
-                    <div class="stat-value">${data.structure ? 'Folder' : 'File'}</div>
-                    <div class="stat-label">Content Type</div>
-                </div>
-            `;
-            
-            document.getElementById('stats').innerHTML = statsHtml;
-            
-            // Build file tree
-            if (data.structure) {
-                const treeHtml = buildFileTree(data.structure);
-                document.getElementById('fileTree').innerHTML = treeHtml;
-                // Auto-expand root folder
-                const firstFolder = document.querySelector('.tree-children');
-                if (firstFolder) firstFolder.classList.add('open');
-            } else {
-                document.getElementById('fileTree').innerHTML = '<p>No folder structure available</p>';
-            }
-            
-            // Build files table
-            let tableHtml = `
-                <table>
-                    <thead>
-                        <tr>
-                            <th>File Name</th>
-                            <th>Size</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-            
-            data.files.forEach(file => {
-                tableHtml += `
-                    <tr>
-                        <td>
-                            <i class="fas fa-file"></i> ${file.name}
-                            ${file.path ? `<div style="font-size: 0.7rem; color: #888;">${file.path}</div>` : ''}
-                        </td>
-                        <td>${file.size_formatted}</td>
-                        <td>
-                            <a href="${file.link}" class="download-btn" target="_blank">
-                                <i class="fas fa-download"></i> Download
-                            </a>
-                            <button class="copy-btn" onclick="copyToClipboard('${file.link}', event)">
-                                <i class="fas fa-copy"></i> Copy
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            });
-            
-            tableHtml += `</tbody></table>`;
-            document.getElementById('filesTable').innerHTML = tableHtml;
-            
-            // Show results
-            resultsDiv.style.display = 'block';
-            resultsDiv.scrollIntoView({ behavior: 'smooth' });
-        }
-        
-        // Show error message
-        function showError(message) {
-            const resultsDiv = document.getElementById('results');
-            const errorHtml = `
-                <div class="alert alert-error">
-                    <i class="fas fa-exclamation-triangle"></i> 
-                    <strong>Error:</strong> ${message}
-                </div>
-            `;
-            resultsDiv.innerHTML = errorHtml;
-            resultsDiv.style.display = 'block';
-        }
-        
-        // Handle form submission
-        document.getElementById('extractForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const url = document.getElementById('url').value.trim();
-            const password = document.getElementById('password').value;
-            const submitBtn = document.getElementById('submitBtn');
-            
-            if (!url) {
-                showError('Please enter a GoFile URL');
-                return;
-            }
-            
-            // Show loading
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<div class="loader"></div> Extracting Links...';
-            
-            try {
-                const response = await fetch('/api/extract', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ url, password: password || null })
-                });
+                    `;
+                }
                 
-                const data = await response.json();
-                displayResults(data);
-            } catch (error) {
-                showError('Network error: ' + error.message);
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '<i class="fas fa-magic"></i> Extract Links';
+                return html;
             }
-        });
-        
-        // Real-time URL validation
-        let validationTimeout;
-        document.getElementById('url').addEventListener('input', (e) => {
-            clearTimeout(validationTimeout);
-            const url = e.target.value.trim();
             
-            if (url && (url.includes('gofile.io/d/') || url.includes('gofile.io/'))) {
-                validationTimeout = setTimeout(async () => {
-                    try {
-                        const response = await fetch('/api/validate', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ url })
-                        });
-                        const data = await response.json();
-                        
-                        const urlInput = document.getElementById('url');
-                        if (data.valid) {
-                            urlInput.style.borderColor = '#10b981';
-                        } else {
-                            urlInput.style.borderColor = '#ef4444';
-                        }
-                    } catch (error) {
-                        console.error('Validation error:', error);
+            // Escape HTML to prevent XSS
+            function escapeHtml(text) {
+                if (!text) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+            
+            // Make functions available globally for onclick handlers
+            window.toggleFolder = function(folderId) {
+                const folder = document.getElementById(folderId);
+                if (folder) {
+                    folder.classList.toggle('open');
+                }
+            };
+            
+            window.copyToClipboard = function(text, event) {
+                navigator.clipboard.writeText(text).then(() => {
+                    const btn = event.target.closest('.copy-btn');
+                    if (btn) {
+                        const originalHtml = btn.innerHTML;
+                        btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                        setTimeout(() => {
+                            btn.innerHTML = originalHtml;
+                        }, 2000);
                     }
-                }, 500);
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                });
+            };
+            
+            // Display results
+            function displayResults(data) {
+                if (!data.success) {
+                    showError(data.error || 'Failed to extract links');
+                    return;
+                }
+                
+                // Display stats
+                if (statsDiv) {
+                    const statsHtml = `
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fas fa-file"></i></div>
+                            <div class="stat-value">${data.total_files}</div>
+                            <div class="stat-label">Total Files</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fas fa-database"></i></div>
+                            <div class="stat-value">${escapeHtml(data.total_size_formatted || formatBytes(data.total_size))}</div>
+                            <div class="stat-label">Total Size</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fas fa-link"></i></div>
+                            <div class="stat-value">${data.files.length}</div>
+                            <div class="stat-label">Direct Links</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon"><i class="fas fa-folder"></i></div>
+                            <div class="stat-value">${data.structure ? (data.structure.type === 'folder' ? 'Folder' : 'File') : 'Unknown'}</div>
+                            <div class="stat-label">Content Type</div>
+                        </div>
+                    `;
+                    statsDiv.innerHTML = statsHtml;
+                }
+                
+                // Build file tree
+                if (fileTreeDiv && data.structure) {
+                    const treeHtml = buildFileTree(data.structure);
+                    fileTreeDiv.innerHTML = treeHtml;
+                    // Auto-expand root folder
+                    const firstFolder = fileTreeDiv.querySelector('.tree-children');
+                    if (firstFolder) firstFolder.classList.add('open');
+                } else if (fileTreeDiv) {
+                    fileTreeDiv.innerHTML = '<p>No folder structure available</p>';
+                }
+                
+                // Build files table
+                if (filesTableDiv) {
+                    let tableHtml = `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>File Name</th>
+                                    <th>Size</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    
+                    data.files.forEach(file => {
+                        tableHtml += `
+                            <tr>
+                                <td>
+                                    <i class="fas fa-file"></i> ${escapeHtml(file.name)}
+                                    ${file.path ? `<div style="font-size: 0.7rem; color: #888;">${escapeHtml(file.path)}</div>` : ''}
+                                </td>
+                                <td>${escapeHtml(file.size_formatted || formatBytes(file.size))}</td>
+                                <td>
+                                    <a href="${escapeHtml(file.link)}" class="download-btn" target="_blank">
+                                        <i class="fas fa-download"></i> Download
+                                    </a>
+                                    <button class="copy-btn" onclick="window.copyToClipboard('${escapeHtml(file.link)}', event)">
+                                        <i class="fas fa-copy"></i> Copy
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    
+                    tableHtml += `</tbody></table>`;
+                    filesTableDiv.innerHTML = tableHtml;
+                }
+                
+                // Show results
+                if (resultsDiv) {
+                    resultsDiv.style.display = 'block';
+                    resultsDiv.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+            
+            // Show error message
+            function showError(message) {
+                if (resultsDiv) {
+                    const errorHtml = `
+                        <div class="alert alert-error">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            <strong>Error:</strong> ${escapeHtml(message)}
+                        </div>
+                    `;
+                    resultsDiv.innerHTML = errorHtml;
+                    resultsDiv.style.display = 'block';
+                }
+            }
+            
+            // Handle form submission
+            if (extractForm) {
+                extractForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    const url = urlInput.value.trim();
+                    const password = passwordInput ? passwordInput.value : '';
+                    
+                    if (!url) {
+                        showError('Please enter a GoFile URL');
+                        return;
+                    }
+                    
+                    // Show loading
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<div class="loader"></div> Extracting Links...';
+                    
+                    try {
+                        const response = await fetch('/api/extract', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ url, password: password || null })
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        
+                        const data = await response.json();
+                        displayResults(data);
+                    } catch (error) {
+                        console.error('Error:', error);
+                        showError('Network error: ' + error.message);
+                    } finally {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="fas fa-magic"></i> Extract Links';
+                    }
+                });
+            }
+            
+            // Real-time URL validation
+            let validationTimeout;
+            if (urlInput) {
+                urlInput.addEventListener('input', (e) => {
+                    clearTimeout(validationTimeout);
+                    const url = e.target.value.trim();
+                    
+                    if (url && (url.includes('gofile.io/d/') || url.includes('gofile.io/'))) {
+                        validationTimeout = setTimeout(async () => {
+                            try {
+                                const response = await fetch('/api/validate', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ url })
+                                });
+                                const data = await response.json();
+                                
+                                if (data.valid) {
+                                    urlInput.style.borderColor = '#10b981';
+                                } else {
+                                    urlInput.style.borderColor = '#ef4444';
+                                }
+                            } catch (error) {
+                                console.error('Validation error:', error);
+                            }
+                        }, 500);
+                    } else if (urlInput) {
+                        urlInput.style.borderColor = '';
+                    }
+                });
             }
         });
     </script>
