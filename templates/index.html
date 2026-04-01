@@ -1,0 +1,787 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoFile Link Extractor - Get Direct Download Links</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        /* Animated background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .bg-animation::before {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: moveBackground 20s linear infinite;
+            opacity: 0.3;
+        }
+
+        @keyframes moveBackground {
+            0% {
+                transform: translate(0, 0);
+            }
+            100% {
+                transform: translate(50px, 50px);
+            }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: fadeInDown 0.8s ease;
+        }
+
+        .logo {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff, #e0e0e0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        /* Main Card */
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: fadeInUp 0.8s ease;
+        }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid transparent;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            font-family: 'Inter', monospace;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+        }
+
+        .password-group {
+            position: relative;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #667eea;
+            background: transparent;
+            border: none;
+            font-size: 1.1rem;
+        }
+
+        /* Button */
+        .btn {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Loading */
+        .loader {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Results */
+        .results {
+            display: none;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+
+        /* File Tree */
+        .file-tree {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .tree-item {
+            padding: 0.5rem 0;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        .tree-folder {
+            color: #ffd966;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .tree-folder:hover {
+            opacity: 0.8;
+        }
+
+        .tree-file {
+            color: #a0d6ff;
+            padding-left: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .file-link {
+            background: rgba(102, 126, 234, 0.3);
+            padding: 0.25rem 0.75rem;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            text-decoration: none;
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .file-link:hover {
+            background: rgba(102, 126, 234, 0.6);
+        }
+
+        .tree-children {
+            margin-left: 1.5rem;
+            display: none;
+        }
+
+        .tree-children.open {
+            display: block;
+        }
+
+        /* Files Table */
+        .files-table {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        th {
+            background: rgba(102, 126, 234, 0.3);
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .download-btn {
+            background: #10b981;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            text-decoration: none;
+            color: white;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .download-btn:hover {
+            background: #059669;
+            transform: scale(1.05);
+        }
+
+        .copy-btn {
+            background: #3b82f6;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+            display: inline-block;
+            margin-left: 0.5rem;
+        }
+
+        .copy-btn:hover {
+            background: #2563eb;
+        }
+
+        /* Error Alert */
+        .alert {
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            animation: shake 0.5s ease;
+        }
+
+        .alert-error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid #ef4444;
+            color: #fecaca;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: auto;
+            padding: 2rem;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .credit {
+            margin-top: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .credit a {
+            color: #ffd966;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .credit a:hover {
+            text-decoration: underline;
+        }
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .card {
+                padding: 1.5rem;
+            }
+            
+            .stat-value {
+                font-size: 1.2rem;
+            }
+            
+            th, td {
+                padding: 0.75rem;
+                font-size: 0.85rem;
+            }
+            
+            .tree-file {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-animation"></div>
+    
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <i class="fas fa-cloud-download-alt"></i> GoFile Link Extractor
+            </div>
+            <div class="subtitle">
+                Extract direct download links from any GoFile URL
+            </div>
+        </div>
+        
+        <div class="card">
+            <form id="extractForm">
+                <div class="form-group">
+                    <label>
+                        <i class="fas fa-link"></i> GoFile URL
+                    </label>
+                    <input type="url" 
+                           id="url" 
+                           placeholder="https://gofile.io/d/abc123..." 
+                           required>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <i class="fas fa-lock"></i> Password (Optional)
+                    </label>
+                    <div class="password-group">
+                        <input type="password" 
+                               id="password" 
+                               placeholder="Enter password if the content is protected">
+                        <button type="button" class="toggle-password" onclick="togglePassword()">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn" id="submitBtn">
+                    <i class="fas fa-magic"></i> Extract Links
+                </button>
+            </form>
+        </div>
+        
+        <div id="results" class="results">
+            <div class="stats" id="stats"></div>
+            <div class="file-tree" id="fileTree"></div>
+            <div class="files-table" id="filesTable"></div>
+        </div>
+        
+        <div class="footer">
+            <div class="credit">
+                <i class="fas fa-code"></i> Coded By 
+                <a href="https://github.com/still-alivenow" target="_blank">
+                    <i class="fab fa-github"></i> @still_alivenow
+                </a>
+            </div>
+            <div>
+                <i class="fas fa-heart" style="color: #ff6b6b;"></i> 
+                Fast & Secure | Direct Links Extracted in Real-time
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentResults = null;
+        
+        // Toggle password visibility
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const icon = document.querySelector('.toggle-password i');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+        
+        // Format bytes
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        // Build file tree HTML
+        function buildFileTree(structure, level = 0) {
+            if (!structure) return '';
+            
+            let html = '';
+            const indent = '  '.repeat(level);
+            
+            if (structure.type === 'folder') {
+                const folderId = 'folder_' + Math.random().toString(36).substr(2, 9);
+                html += `
+                    <div class="tree-item">
+                        <div class="tree-folder" onclick="toggleFolder('${folderId}')">
+                            <i class="fas fa-folder"></i> 📁 ${structure.name}
+                        </div>
+                        <div id="${folderId}" class="tree-children">
+                `;
+                
+                if (structure.children && structure.children.length > 0) {
+                    structure.children.forEach(child => {
+                        html += buildFileTree(child, level + 1);
+                    });
+                }
+                
+                html += `</div></div>`;
+            } else {
+                html += `
+                    <div class="tree-item">
+                        <div class="tree-file">
+                            <span>
+                                <i class="fas fa-file"></i> 📄 ${structure.name}
+                                <span style="color: #888; font-size: 0.8rem;">(${formatBytes(structure.size)})</span>
+                            </span>
+                            <div>
+                                <a href="${structure.link}" class="file-link" target="_blank" onclick="event.stopPropagation()">
+                                    <i class="fas fa-download"></i> Download
+                                </a>
+                                <button class="copy-btn" onclick="copyToClipboard('${structure.link}', event)">
+                                    <i class="fas fa-copy"></i> Copy Link
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            return html;
+        }
+        
+        // Toggle folder visibility
+        function toggleFolder(folderId) {
+            const folder = document.getElementById(folderId);
+            if (folder.classList.contains('open')) {
+                folder.classList.remove('open');
+            } else {
+                folder.classList.add('open');
+            }
+        }
+        
+        // Copy to clipboard
+        function copyToClipboard(text, event) {
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = event.target.closest('.copy-btn');
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                }, 2000);
+            });
+        }
+        
+        // Display results
+        function displayResults(data) {
+            if (!data.success) {
+                showError(data.error || 'Failed to extract links');
+                return;
+            }
+            
+            currentResults = data;
+            const resultsDiv = document.getElementById('results');
+            
+            // Display stats
+            const statsHtml = `
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-file"></i></div>
+                    <div class="stat-value">${data.total_files}</div>
+                    <div class="stat-label">Total Files</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-database"></i></div>
+                    <div class="stat-value">${data.total_size_formatted}</div>
+                    <div class="stat-label">Total Size</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-link"></i></div>
+                    <div class="stat-value">${data.files.length}</div>
+                    <div class="stat-label">Direct Links</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-folder"></i></div>
+                    <div class="stat-value">${data.structure ? 'Folder' : 'File'}</div>
+                    <div class="stat-label">Content Type</div>
+                </div>
+            `;
+            
+            document.getElementById('stats').innerHTML = statsHtml;
+            
+            // Build file tree
+            if (data.structure) {
+                const treeHtml = buildFileTree(data.structure);
+                document.getElementById('fileTree').innerHTML = treeHtml;
+                // Auto-expand root folder
+                const firstFolder = document.querySelector('.tree-children');
+                if (firstFolder) firstFolder.classList.add('open');
+            } else {
+                document.getElementById('fileTree').innerHTML = '<p>No folder structure available</p>';
+            }
+            
+            // Build files table
+            let tableHtml = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>File Name</th>
+                            <th>Size</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            data.files.forEach(file => {
+                tableHtml += `
+                    <tr>
+                        <td>
+                            <i class="fas fa-file"></i> ${file.name}
+                            ${file.path ? `<div style="font-size: 0.7rem; color: #888;">${file.path}</div>` : ''}
+                        </td>
+                        <td>${file.size_formatted}</td>
+                        <td>
+                            <a href="${file.link}" class="download-btn" target="_blank">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                            <button class="copy-btn" onclick="copyToClipboard('${file.link}', event)">
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tableHtml += `</tbody></table>`;
+            document.getElementById('filesTable').innerHTML = tableHtml;
+            
+            // Show results
+            resultsDiv.style.display = 'block';
+            resultsDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        // Show error message
+        function showError(message) {
+            const resultsDiv = document.getElementById('results');
+            const errorHtml = `
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    <strong>Error:</strong> ${message}
+                </div>
+            `;
+            resultsDiv.innerHTML = errorHtml;
+            resultsDiv.style.display = 'block';
+        }
+        
+        // Handle form submission
+        document.getElementById('extractForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const url = document.getElementById('url').value.trim();
+            const password = document.getElementById('password').value;
+            const submitBtn = document.getElementById('submitBtn');
+            
+            if (!url) {
+                showError('Please enter a GoFile URL');
+                return;
+            }
+            
+            // Show loading
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="loader"></div> Extracting Links...';
+            
+            try {
+                const response = await fetch('/api/extract', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url, password: password || null })
+                });
+                
+                const data = await response.json();
+                displayResults(data);
+            } catch (error) {
+                showError('Network error: ' + error.message);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-magic"></i> Extract Links';
+            }
+        });
+        
+        // Real-time URL validation
+        let validationTimeout;
+        document.getElementById('url').addEventListener('input', (e) => {
+            clearTimeout(validationTimeout);
+            const url = e.target.value.trim();
+            
+            if (url && (url.includes('gofile.io/d/') || url.includes('gofile.io/'))) {
+                validationTimeout = setTimeout(async () => {
+                    try {
+                        const response = await fetch('/api/validate', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ url })
+                        });
+                        const data = await response.json();
+                        
+                        const urlInput = document.getElementById('url');
+                        if (data.valid) {
+                            urlInput.style.borderColor = '#10b981';
+                        } else {
+                            urlInput.style.borderColor = '#ef4444';
+                        }
+                    } catch (error) {
+                        console.error('Validation error:', error);
+                    }
+                }, 500);
+            }
+        });
+    </script>
+</body>
+</html>
